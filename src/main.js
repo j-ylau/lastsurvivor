@@ -160,14 +160,14 @@ const GUN_SOUND_VOLUME = 0.2
 
 //enemies
 const ENEMY_HEALTH = {
-  ghosty: 6, // Easiest enemy, suggesting lowest health
+  ghosty: 6, // Easiest enemy,  lowest health
   bag: 8, // Light armor enemy, medium speed, moderate health
   bobo: 10, // Medium armor enemy, medium speed, higher health
   dino: 10, // Medium armor enemy, high speed, higher health
   btfly: 7, // Light armor enemy, very fast speed, lower health
-  sword: 9, // Melee enemy, suggesting moderate health due to direct engagement
+  sword: 9, // Melee enemy,  moderate health due to direct engagement
   gigagantrum: 13, // Heavy armor enemy, slow speed, high health
-  mark: 15, // Heavy armor, medium speed, high hp, suggesting the highest health
+  mark: 15, // Heavy armor, medium speed, high hp,  the highest health
 };
 
 const ENEMY_SPEED = {
@@ -182,25 +182,25 @@ const ENEMY_SPEED = {
 };
 
 const ENEMY_SPAWN_CHANCES = {
-  ghosty: 0.8, // Easiest enemy, suggesting higher spawn chance
-  bag: 0.3, // Light armor enemy, medium spawn chance
+  ghosty: 0.8, // Easiest enemy,  higher spawn chance
+  bag: 0.4, // Light armor enemy, medium spawn chance
   bobo: 0.25, // Medium armor enemy, medium spawn chance
   dino: 0.2, // Medium armor enemy, lower spawn chance due to high speed
   btfly: 0.5, // Light armor enemy, very fast speed, higher spawn chance
   sword: 0.4, // Melee enemy, moderate spawn chance
   gigagantrum: 0.1, // Heavy armor enemy, low spawn chance
-  mark: 0.05, // Heavy armor, medium speed, high hp, lowest spawn chance due to difficulty
+  mark: 0.1, // Heavy armor, medium speed, high hp, lowest spawn chance due to difficulty
 };
 
 const ENEMY_ATTACK_SPEED = {
-  ghosty: 1, // Easiest enemy, suggesting slower attack speed
+  ghosty: 1, // Easiest enemy,  slower attack speed
   bag: 1.2, // Light armor enemy, medium attack speed
   bobo: 1.4, // Medium armor enemy, medium attack speed
   dino: 1.6, // Medium armor enemy, high attack speed
   btfly: 2.5, // Light armor enemy, very fast speed, highest attack speed
-  sword: 1.0, // Melee enemy, suggesting attack speed is moderate due to need for delay in collision damage
+  sword: 1.0, // Melee enemy,  attack speed is moderate due to need for delay in collision damage
   gigagantrum: 0.8, // Heavy armor enemy, slow speed, slower attack speed
-  mark: 1.2, // Heavy armor, medium speed, suggesting a moderate attack speed despite high health
+  mark: 1.2, // Heavy armor, medium speed,  a moderate attack speed despite high health
 };
 
 const enemyTypes = [
@@ -251,7 +251,9 @@ const player = k.add([
 // mark: melee enemy, fast speed, onCollide should be used with a delay to inflict damage
 
 const roundEnemies = {
-  // 1: ["ghosty", "bag", "bobo", "dino", "btfly", "sword", "gigagantrum", "mark"],
+    // 1: ["ghosty", "bag", "bobo", "dino", "btfly", "sword", "gigagantrum", "mark"],
+    // 2: ["dino", "btfly", "sword" ],
+    // 3: ["sword", "gigagantrum", "mark"],
   1: ["ghosty"],
   2: ["ghosty"],
   3: ["ghosty", "bag"],
@@ -569,7 +571,19 @@ const sprintText = k.add([
 
 function getRandomEnemyType() {
   const enemyTypes = roundEnemies[currentRound];
-  return k.choose(enemyTypes);
+  const spawnChances = enemyTypes.map(type => ENEMY_SPAWN_CHANCES[type]);
+  const totalChance = spawnChances.reduce((a, b) => a + b, 0);
+  const randomValue = Math.random() * totalChance;
+
+  // k.choose 
+
+  let cumulativeChance = 0;
+  for (let i = 0; i < enemyTypes.length; i++) {
+    cumulativeChance += spawnChances[i];
+    if (randomValue < cumulativeChance) {
+      return enemyTypes[i];
+    }
+  }
 }
 
 function spawnEnemy() {
@@ -602,7 +616,30 @@ function spawnEnemy() {
       });
 
       enemy.onStateEnter("attack", async () => {
-        if (enemy.exists() && player.exists()) {
+        if (enemy.exists() && player.exists() && enemyType === "gigagantrum") {
+          const dir = player.pos.sub(enemy.pos).unit();
+          const CONE_ANGLE = Math.PI / 4;
+          const numBullets = 5; // Adjust the number of bullets as needed
+          for (let i = 0; i < numBullets; i++) {
+            const angle = CONE_ANGLE * (i / (numBullets - 1)) - CONE_ANGLE / 2;
+            const spreadX = Math.cos(angle);
+            const spreadY = Math.sin(angle);
+            const spreadDir = k.vec2(
+              dir.x * spreadX - dir.y * spreadY,
+              dir.x * spreadY + dir.y * spreadX
+            );
+      
+            k.add([
+              k.pos(enemy.pos),
+              k.move(spreadDir, BULLET_SPEED),
+              k.sprite(enemy.bulletSprite),
+              k.area(),
+              k.offscreen({ destroy: true }),
+              k.anchor("center"),
+              "enemyBullet",
+            ]);
+          }
+        } else if (enemy.exists() && player.exists()) {
           const dir = player.pos.sub(enemy.pos).unit();
           k.add([
             k.pos(enemy.pos),
@@ -1291,12 +1328,12 @@ k.onClick("shopButton", (button) => {
   }
 });
 
-const gunText = k.add([
-  k.text(`Current Gun: ${currentGun.name}`),
-  k.pos(20, k.height() - 300),
-  k.color(255, 255, 255),
-  k.scale(0.5),
-]);
+// const gunText = k.add([
+//   k.text(`Current Gun: ${currentGun.name}`),
+//   k.pos(20, k.height() - 300),
+//   k.color(255, 255, 255),
+//   k.scale(0.5),
+// ]);
 
 function updateGunText() {
   gunText.text = `Current Gun: ${
